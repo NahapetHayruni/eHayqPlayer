@@ -20,7 +20,6 @@ import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
-import com.google.android.exoplayer2.upstream.UdpDataSource;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -28,6 +27,9 @@ public class MainActivity extends AppCompatActivity {
 
     // creating a variable for exoplayer
     private ExoPlayer exoPlayer;
+    public static final int PORT_MIN = 2000;
+    public static final int PORT_MAX = 8000;
+    private int port;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,12 +37,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         FFmpeg.cancel();
         exoPlayerView = findViewById(R.id.player_view);
+        exoPlayer = new ExoPlayer.Builder(this).build();
+        exoPlayerView.setPlayer(exoPlayer);
+        exoPlayerView.requestFocus();
         Button b = findViewById(R.id.playButton);
+        port = PORT_MIN;
+        Log.e("LLL", "" + port);
         b.setOnClickListener(view -> {
             FFmpeg.cancel();
+            ++port;
+            if (port > PORT_MAX) {
+                port = PORT_MIN;
+            }
+            Log.e("LLL", "" + port);
             EditText mEdit   = (EditText)findViewById(R.id.editTextTextEmailAddress);
             String video_path = mEdit.getText().toString();
-            String cmd = "-re -i " + video_path + " -c:v copy -tune zerolatency -preset ultrafast -f mpegts udp://127.0.0.1:2000";
+            String cmd = "-re -i " + video_path +  " -c:v copy -f mpegts tcp://localhost:" + port + "\\?listen";
             FFmpeg.executeAsync(cmd,
                     (executionId, returnCode) -> {
                         if (returnCode == RETURN_CODE_SUCCESS) {
@@ -52,21 +64,18 @@ public class MainActivity extends AppCompatActivity {
                             Config.printLastCommandOutput(Log.INFO);
                         }
                     });
+            try {
+                TcpDataSource streamingSource = new TcpDataSource();
+                DataSource.Factory tcpDataSourceFactory = () -> streamingSource;
+                MediaSource tcpMediaSource = new ProgressiveMediaSource.Factory(tcpDataSourceFactory,TsExtractor.FACTORY)
+                        .createMediaSource(MediaItem.fromUri(Uri.parse("tcp://localhost:" + port)));
+                exoPlayer.setPlayWhenReady(true);
+                exoPlayer.setMediaSource(tcpMediaSource);
+                exoPlayer.prepare();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
-        try {
-            exoPlayer = new ExoPlayer.Builder(this).build();
-            exoPlayerView.setPlayer(exoPlayer);
-            exoPlayerView.requestFocus();
-            UdpDataSource streamingSource = new UdpDataSource();
-            DataSource.Factory udpDataSourceFactory = () -> streamingSource;
-            MediaSource udpMediaSource = new ProgressiveMediaSource.Factory(udpDataSourceFactory,TsExtractor.FACTORY)
-                    .createMediaSource(MediaItem.fromUri(Uri.parse("tcp://192.168.11.241:8000")));
-                    //.createMediaSource(MediaItem.fromUri(Uri.parse("udp://localhost:2000")));
-            exoPlayer.setPlayWhenReady(true);
-            exoPlayer.setMediaSource(udpMediaSource);
-            exoPlayer.prepare();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+
     }
 }
