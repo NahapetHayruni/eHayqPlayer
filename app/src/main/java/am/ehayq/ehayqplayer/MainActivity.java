@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
             FFmpeg.cancel();
             EditText mEdit   = (EditText)findViewById(R.id.editTextTextEmailAddress);
             String video_path = mEdit.getText().toString();
-            String cmd = "-re -i " + video_path + " -c:v copy -f mpegts udp://127.0.0.1:2000";
+            String cmd = "-re -i " + video_path + " -c:v copy -tune zerolatency -preset ultrafast -f mpegts udp://127.0.0.1:2000";
             FFmpeg.executeAsync(cmd,
                     (executionId, returnCode) -> {
                         if (returnCode == RETURN_CODE_SUCCESS) {
@@ -60,7 +60,8 @@ public class MainActivity extends AppCompatActivity {
             UdpDataSource streamingSource = new UdpDataSource();
             DataSource.Factory udpDataSourceFactory = () -> streamingSource;
             MediaSource udpMediaSource = new ProgressiveMediaSource.Factory(udpDataSourceFactory,TsExtractor.FACTORY)
-                    .createMediaSource(MediaItem.fromUri(Uri.parse("udp://localhost:2000")));
+                    .createMediaSource(MediaItem.fromUri(Uri.parse("tcp://192.168.11.241:8000")));
+                    //.createMediaSource(MediaItem.fromUri(Uri.parse("udp://localhost:2000")));
             exoPlayer.setPlayWhenReady(true);
             exoPlayer.setMediaSource(udpMediaSource);
             exoPlayer.prepare();
